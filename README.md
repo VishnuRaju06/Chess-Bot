@@ -30,7 +30,7 @@ Short project to play **human vs AI chess** in the browser using a small neural-
 3. **Create a Render Web Service**
    - Go to Render, choose “New → Web Service”, and pick this GitHub repo.
    - Render will automatically read `render.yaml` and configure:
-     - Build command: `pip install -r requirements.txt`
+     - Build command: `pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install -r requirements.txt`
      - Start command: `uvicorn api.main:app --host 0.0.0.0 --port 8000`
 4. **Open the app URL**
    - Once deployed, open the Render URL (e.g. `https://your-service.onrender.com`) and play in the browser.

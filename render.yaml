@@ -3,7 +3,7 @@ services:
     name: chess-bot
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --index-url https://download.pytorch.org/whl/cpu torch && pip install -r requirements.txt
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port 8000
     autoDeploy: true
 
