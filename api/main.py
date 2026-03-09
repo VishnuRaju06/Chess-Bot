@@ -40,7 +40,7 @@ def serve_frontend() -> FileResponse:
 
 MODEL_PATH = hf_hub_download(
     repo_id="VishnuRaju06/chess-bot-model",
-    filename="chess_model.pth"
+    filename="model.pth"
 )
 
 engine = ChessInference(MODEL_PATH)
