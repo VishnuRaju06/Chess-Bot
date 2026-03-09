@@ -3,4 +3,5 @@ uvicorn
 python-chess
 requests
 huggingface_hub
+numpy
 torch==2.10.0
