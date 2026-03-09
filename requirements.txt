@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-torch
 numpy
 python-chess
 requests
 huggingface_hub
+torch --index-url https://download.pytorch.org/whl/cpu
