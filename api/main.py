@@ -38,11 +38,12 @@ def serve_frontend() -> FileResponse:
 
 # ------------------ Load model from Hugging Face ------------------ #
 
+
+
 MODEL_PATH = hf_hub_download(
-    repo_id="VishnuRaju06/chess-bot-model",
+    repo_id="vishnuraju06/Chess-Bot",
     filename="model.pth"
 )
-
 engine = ChessInference(MODEL_PATH)
 print(f"[startup] Loaded model from Hugging Face on device {engine.device}")
 
