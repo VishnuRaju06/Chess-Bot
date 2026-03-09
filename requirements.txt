@@ -4,3 +4,4 @@ torch
 numpy
 python-chess
 requests
+huggingface_hub
