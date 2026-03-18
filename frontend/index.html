@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Human vs AI Chess</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -9,8 +10,12 @@
 
 <h1>♟ Human vs AI Chess</h1>
 
+<div class="controls">
+  <p id="status"></p>
+  <button id="restart-btn" onclick="startGame()">Restart Game</button>
+</div>
+
 <div id="board"></div>
-<p id="status"></p>
 
 <script src="/static/script.js"></script>
 </body>

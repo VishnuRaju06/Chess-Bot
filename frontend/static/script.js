@@ -67,6 +67,15 @@ async function render() {
   const boardState = fenToBoard(state.fen);
   legalMoves = state.legal_moves || {};
 
+  // Extract info for the last move highlight
+  let lastFrom = null;
+  let lastTo = null;
+  if (state.move_history && state.move_history.length > 0) {
+    const lastMove = state.move_history[state.move_history.length - 1];
+    lastFrom = lastMove.substring(0, 2);
+    lastTo = lastMove.substring(2, 4);
+  }
+
   boardEl.innerHTML = "";
 
   for (let r = 0; r < 8; r++) {
@@ -75,6 +84,9 @@ async function render() {
       const sq = document.createElement("div");
 
       sq.className = "square " + ((r + c) % 2 === 0 ? "light" : "dark");
+      if (sqName === lastFrom || sqName === lastTo) {
+        sq.className += " last-move";
+      }
       sq.dataset.square = sqName;
 
       if (selectedSquare && (legalMoves[selectedSquare] || []).includes(sqName)) {
