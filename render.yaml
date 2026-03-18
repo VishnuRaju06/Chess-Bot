@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: chess-bot
-    env: python
-    plan: free
-    buildCommand: pip install torch==2.10.0 --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 10000
-    autoDeploy: true

@@ -11,18 +11,22 @@ const PIECE_MAP = {
 };
 
 // ------------------ API ------------------
+// IMPORTANT: Replace this with your actual Hugging Face Space URL when deploying!
+// Example: "https://vishnuraju06-chess-bot-api.hf.space"
+const API_BASE = "https://vishnuraju06-chess-bot.hf.space";
+
 async function getState() {
-  const res = await fetch("/state");
+  const res = await fetch(`${API_BASE}/state`);
   return res.json();
 }
 
 async function startGame() {
-  await fetch("/start", { method: "POST" });
+  await fetch(`${API_BASE}/start`, { method: "POST" });
   render();
 }
 
 async function sendMove(move) {
-  const res = await fetch("/move", {
+  const res = await fetch(`${API_BASE}/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ move })

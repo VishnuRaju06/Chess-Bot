@@ -12,7 +12,17 @@ from huggingface_hub import hf_hub_download
 from game.game_manager import ChessGame
 from inference.predict import ChessInference
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins (Vercel will have dynamic URLs)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR: Final[Path] = Path(__file__).resolve().parent.parent
 FRONTEND_DIR: Final[Path] = BASE_DIR / "frontend"
