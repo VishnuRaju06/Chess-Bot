@@ -186,16 +186,20 @@ async function startGame(color) {
 async function playMove(uci) {
   setBusy(true);
   try {
-    await api("/move", {
+    const state = await api("/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ game_id: gameId, move: uci }),
     });
     selectedSquare = null;
-    await render();
+    renderState(state);
   } catch (error) {
     selectedSquare = null;
-    await render();
+    try {
+      await render();
+    } catch {
+      // Keep the original move error visible if state refresh also fails.
+    }
     statusCopyEl.textContent = error.message;
   } finally {
     setBusy(false);
@@ -219,7 +223,10 @@ function openPromotion(from, to, choices, colorPrefix) {
     btn.title = promo;
     btn.innerHTML = `<img src="/pieces/${PIECE_MAP[letter]}.png" alt="${promo}" />`;
     btn.addEventListener("click", () => {
-      const uci = from + to + promo;
+      const move = (legalMoves[from] || []).find(
+        (entry) => typeof entry !== "string" && entry.to === to && entry.promotion === promo,
+      );
+      const uci = move?.uci || from + to + promo;
       closePromotion();
       playMove(uci);
     });
@@ -248,7 +255,10 @@ function tryMove(from, to) {
     return;
   }
 
-  playMove(from + to);
+  const move = (legalMoves[from] || []).find(
+    (entry) => typeof entry !== "string" && entry.to === to && !entry.promotion,
+  );
+  playMove(move?.uci || from + to);
 }
 
 function updateStatus(state) {
