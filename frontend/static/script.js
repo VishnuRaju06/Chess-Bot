@@ -39,6 +39,78 @@ let busy = false;
 let pendingPromotion = null;
 let gameId = null;
 let humanColor = "white";
+let audioContext = null;
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  try {
+    if (!audioContext) audioContext = new AudioContextClass();
+    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+  } catch {
+    return null;
+  }
+  return audioContext;
+}
+
+function playTone(frequency, delay = 0, duration = 0.12, volume = 0.045) {
+  const context = getAudioContext();
+  if (!context) return;
+
+  try {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const startAt = context.currentTime + delay;
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(frequency, startAt);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(startAt);
+    oscillator.stop(startAt + duration + 0.02);
+  } catch {
+    // Sound support varies by browser; it must not interrupt a move.
+  }
+}
+
+function vibrate(pattern) {
+  try {
+    if (typeof navigator.vibrate === "function") navigator.vibrate(pattern);
+  } catch {
+    // Some browsers disable vibration; chess play should still continue normally.
+  }
+}
+
+function playGameFeedback(state) {
+  const termination = (state.termination || "").toLowerCase();
+  if (state.game_over && termination === "checkmate") {
+    const humanWon = state.result === (state.human_color === "white" ? "1-0" : "0-1");
+    const notes = humanWon ? [523, 659, 784, 1047] : [784, 659, 523, 392];
+    notes.forEach((frequency, index) => playTone(frequency, index * 0.13, 0.22));
+    vibrate([80, 50, 80, 50, 180]);
+    return;
+  }
+  if (state.in_check) {
+    playTone(740, 0, 0.14);
+    playTone(988, 0.15, 0.2);
+    vibrate([45, 45, 70]);
+    return;
+  }
+
+  const history = state.move_history || [];
+  const lastMove = history[history.length - 1];
+  const san = lastMove && (typeof lastMove === "string" ? lastMove : lastMove.san || "");
+  if (san.includes("x")) {
+    playTone(392, 0, 0.12);
+    playTone(294, 0.09, 0.18);
+    vibrate([30, 35, 30]);
+  } else {
+    playTone(523, 0, 0.1);
+    vibrate(18);
+  }
+}
 
 function destSquares(from) {
   const entries = legalMoves[from] || [];
@@ -161,6 +233,7 @@ function showColorChoice() {
 }
 
 async function startGame(color) {
+  getAudioContext();
   colorModalEl.classList.add("hidden");
   closePromotion();
   selectedSquare = null;
@@ -174,6 +247,7 @@ async function startGame(color) {
     });
     gameId = state.game_id;
     renderState(state);
+    if (color === "black") playGameFeedback(state);
   } catch (error) {
     statusEl.textContent = "Could not start game";
     statusCopyEl.textContent = error.message;
@@ -184,6 +258,7 @@ async function startGame(color) {
 }
 
 async function playMove(uci) {
+  getAudioContext();
   setBusy(true);
   try {
     const state = await api("/move", {
@@ -193,6 +268,7 @@ async function playMove(uci) {
     });
     selectedSquare = null;
     renderState(state);
+    playGameFeedback(state);
   } catch (error) {
     selectedSquare = null;
     try {
@@ -266,14 +342,25 @@ function updateStatus(state) {
   youColorEl.textContent = humanColor[0].toUpperCase() + humanColor.slice(1);
   const aiColor = state.ai_color || (humanColor === "white" ? "black" : "white");
   engineColorEl.textContent = aiColor[0].toUpperCase() + aiColor.slice(1);
-  statusCardEl.classList.remove("is-check", "is-over");
+  statusCardEl.classList.remove("is-check", "is-over", "is-checkmate");
   if (state.game_over) {
     statusCardEl.classList.add("is-over");
-    statusKickerEl.textContent = state.termination
-      ? state.termination.replaceAll("_", " ")
-      : "Finished";
-    statusEl.textContent = resultLabel(state.result, state.termination);
-    statusCopyEl.textContent = `Final score ${state.result}. Start a new game to play again.`;
+    const checkmate = (state.termination || "").toLowerCase() === "checkmate";
+    const humanWon = state.result === (humanColor === "white" ? "1-0" : "0-1");
+    if (checkmate) {
+      statusCardEl.classList.add("is-checkmate");
+      statusKickerEl.textContent = humanWon ? "Checkmate · You win" : "Checkmate · Engine wins";
+      statusEl.textContent = "Checkmate!";
+      statusCopyEl.textContent = humanWon
+        ? "You delivered checkmate. Start a new game to play again."
+        : "You are checkmated. Start a new game to try again.";
+    } else {
+      statusKickerEl.textContent = state.termination
+        ? state.termination.replaceAll("_", " ")
+        : "Finished";
+      statusEl.textContent = resultLabel(state.result, state.termination);
+      statusCopyEl.textContent = `Final score ${state.result}. Start a new game to play again.`;
+    }
     return;
   }
   if (state.in_check) {

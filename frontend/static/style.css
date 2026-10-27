@@ -296,6 +296,17 @@ h1 {
   border-color: var(--gold);
 }
 
+.status-card.is-checkmate {
+  border-color: rgba(212, 181, 106, 0.8);
+  background: linear-gradient(145deg, rgba(56, 43, 21, 0.96), rgba(24, 33, 22, 0.96));
+  box-shadow: 0 0 28px rgba(212, 181, 106, 0.14);
+}
+
+.status-card.is-checkmate .status-title {
+  color: var(--gold);
+  font-size: 38px;
+}
+
 .status-kicker {
   margin: 0 0 6px;
   text-transform: uppercase;
