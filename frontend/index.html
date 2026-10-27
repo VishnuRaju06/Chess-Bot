@@ -29,14 +29,14 @@
         <div class="captured captured-top" id="captured-black" aria-label="Pieces captured by White"></div>
 
         <div class="board-shell">
-          <div class="rank-labels" aria-hidden="true">
+          <div class="rank-labels" id="rank-labels" aria-hidden="true">
             <span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
           </div>
-          <div>
+          <div class="board-frame">
             <div id="board" role="grid" aria-label="Chessboard"></div>
-            <div class="file-labels" aria-hidden="true">
-              <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
-            </div>
+          </div>
+          <div class="file-labels" id="file-labels" aria-hidden="true">
+            <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
           </div>
         </div>
 
@@ -48,16 +48,20 @@
           <p class="status-kicker" id="status-kicker">White to move</p>
           <p class="status-title" id="status">Your turn</p>
           <p class="status-copy" id="status-copy">You play White. The neural net answers as Black.</p>
+          <p class="thinking-indicator hidden" id="thinking" role="status" aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            The engine is choosing a move
+          </p>
         </div>
 
         <div class="meta-row">
           <div class="meta-chip">
             <span>You</span>
-            <strong>White</strong>
+            <strong id="you-color">—</strong>
           </div>
           <div class="meta-chip">
             <span>Engine</span>
-            <strong>Black</strong>
+            <strong id="engine-color">—</strong>
           </div>
         </div>
 
@@ -74,10 +78,21 @@
     </main>
   </div>
 
-  <div id="thinking" class="veil hidden" aria-live="polite">
-    <div class="veil-card">
-      <span class="spinner" aria-hidden="true"></span>
-      <p>The engine is choosing a reply</p>
+  <div id="color-modal" class="veil" role="dialog" aria-modal="true" aria-labelledby="color-title">
+    <div class="promo-card">
+      <p class="status-kicker">New game</p>
+      <h2 id="color-title">Choose a side</h2>
+      <p class="promo-copy">White moves first. Black waits for the engine’s opening move.</p>
+      <div class="color-choices">
+        <button type="button" id="play-white">
+          <img src="/pieces/wK.png" alt="" />
+          <span>Play White</span>
+        </button>
+        <button type="button" id="play-black">
+          <img src="/pieces/bK.png" alt="" />
+          <span>Play Black</span>
+        </button>
+      </div>
     </div>
   </div>
 

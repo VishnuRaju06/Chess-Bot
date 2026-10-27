@@ -17,7 +17,17 @@ class ChessGame:
         self.board = chess.Board()
         self.move_history: list[dict] = []
 
-    def reset(self):
+    def set_human_color(self, color: str):
+        if color == "black":
+            self.human_color = chess.BLACK
+            self.ai_color = chess.WHITE
+        else:
+            self.human_color = chess.WHITE
+            self.ai_color = chess.BLACK
+
+    def reset(self, human_color: str | None = None):
+        if human_color is not None:
+            self.set_human_color(human_color)
         self.board.reset()
         self.move_history.clear()
 
@@ -84,5 +94,7 @@ class ChessGame:
             "termination": outcome.termination.name if outcome else None,
             "in_check": self.board.is_check(),
             "turn": "white" if self.board.turn == chess.WHITE else "black",
+            "human_color": "white" if self.human_color == chess.WHITE else "black",
+            "ai_color": "white" if self.ai_color == chess.WHITE else "black",
             "legal_moves": legal_moves,
         }

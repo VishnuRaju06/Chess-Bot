@@ -1,4 +1,6 @@
 import os
+from threading import RLock
+from uuid import uuid4
 from pathlib import Path
 from typing import Final
 
@@ -57,37 +59,83 @@ MODEL_PATH = hf_hub_download(
 engine = ChessInference(MODEL_PATH)
 print(f"[startup] Loaded model from Hugging Face on device {engine.device}")
 
-game = ChessGame(engine, ai_color=chess.BLACK)
+# Each browser gets an independent game and lock. The shared model is read-only
+# in eval mode, while board mutations stay serialized per game.
+games: dict[str, ChessGame] = {}
+game_locks: dict[str, RLock] = {}
+games_lock = RLock()
 
 
 # ------------------ API Models ------------------ #
 
 class MoveRequest(BaseModel):
+    game_id: str
     move: str
+
+
+class StartRequest(BaseModel):
+    color: str = "white"
 
 
 # ------------------ API Endpoints ------------------ #
 
 @app.post("/start")
-def start_game():
-    game.reset()
-    return game.state()
+def start_game(req: StartRequest):
+    if req.color not in ("white", "black"):
+        raise HTTPException(status_code=400, detail="color must be white or black")
+
+    game_id = uuid4().hex
+    new_game = ChessGame(engine)
+    new_game.reset(human_color=req.color)
+    game_lock = RLock()
+    with game_lock:
+        if new_game.board.turn == new_game.ai_color:
+            new_game.apply_ai_move()
+        state = new_game.state()
+    with games_lock:
+        games[game_id] = new_game
+        game_locks[game_id] = game_lock
+    return {"game_id": game_id, **state}
+
+
+def get_game(game_id: str) -> tuple[ChessGame, RLock]:
+    with games_lock:
+        game = games.get(game_id)
+        game_lock = game_locks.get(game_id)
+    if game is None or game_lock is None:
+        raise HTTPException(status_code=404, detail="Game not found. Start a new game.")
+    return game, game_lock
 
 
 @app.get("/state")
-def get_state():
-    return game.state()
+def get_state(game_id: str):
+    game, game_lock = get_game(game_id)
+    with game_lock:
+        return {"game_id": game_id, **game.state()}
 
 
 @app.post("/move")
 def make_move(req: MoveRequest):
+    game, game_lock = get_game(req.game_id)
     try:
-        game.apply_human_move(req.move)
-
-        if not game.board.is_game_over():
-            game.apply_ai_move()
-
+        with game_lock:
+            game.apply_human_move(req.move)
+            if not game.board.is_game_over():
+                game.apply_ai_move()
+            state = game.state()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"game_id": req.game_id, **state}
 
-    return game.state()
+
+@app.post("/ai-move")
+def ai_move(game_id: str):
+    game, game_lock = get_game(game_id)
+    try:
+        with game_lock:
+            if not game.board.is_game_over() and game.board.turn == game.ai_color:
+                game.apply_ai_move()
+            state = game.state()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"game_id": game_id, **state}

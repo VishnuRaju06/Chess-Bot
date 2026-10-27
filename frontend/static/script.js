@@ -20,18 +20,25 @@ const statusKickerEl = document.getElementById("status-kicker");
 const statusCopyEl = document.getElementById("status-copy");
 const statusCardEl = document.getElementById("status-card");
 const thinkingEl = document.getElementById("thinking");
+const colorModalEl = document.getElementById("color-modal");
 const promoModalEl = document.getElementById("promo-modal");
 const promoChoicesEl = document.getElementById("promo-choices");
 const moveListEl = document.getElementById("move-list");
 const plyCountEl = document.getElementById("ply-count");
 const capturedWhiteEl = document.getElementById("captured-white");
 const capturedBlackEl = document.getElementById("captured-black");
+const youColorEl = document.getElementById("you-color");
+const engineColorEl = document.getElementById("engine-color");
+const rankLabelsEl = document.getElementById("rank-labels");
+const fileLabelsEl = document.getElementById("file-labels");
 
 let selectedSquare = null;
 let legalMoves = {};
 let boardPieces = {};
 let busy = false;
 let pendingPromotion = null;
+let gameId = null;
+let humanColor = "white";
 
 function destSquares(from) {
   const entries = legalMoves[from] || [];
@@ -70,6 +77,10 @@ function squareName(r, c) {
 
 function isWhitePiece(letter) {
   return letter === letter.toUpperCase();
+}
+
+function isHumanPiece(letter) {
+  return letter && isWhitePiece(letter) === (humanColor === "white");
 }
 
 function lastMoveSquares(history) {
@@ -143,13 +154,30 @@ async function api(path, options) {
   return res.json();
 }
 
-async function startGame() {
+function showColorChoice() {
   closePromotion();
   selectedSquare = null;
+  colorModalEl.classList.remove("hidden");
+}
+
+async function startGame(color) {
+  colorModalEl.classList.add("hidden");
+  closePromotion();
+  selectedSquare = null;
+  gameId = null;
   setBusy(true);
   try {
-    await api("/start", { method: "POST" });
-    await render();
+    const state = await api("/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ color }),
+    });
+    gameId = state.game_id;
+    renderState(state);
+  } catch (error) {
+    statusEl.textContent = "Could not start game";
+    statusCopyEl.textContent = error.message;
+    colorModalEl.classList.remove("hidden");
   } finally {
     setBusy(false);
   }
@@ -161,13 +189,14 @@ async function playMove(uci) {
     await api("/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ move: uci }),
+      body: JSON.stringify({ game_id: gameId, move: uci }),
     });
     selectedSquare = null;
     await render();
-  } catch {
+  } catch (error) {
     selectedSquare = null;
     await render();
+    statusCopyEl.textContent = error.message;
   } finally {
     setBusy(false);
   }
@@ -202,7 +231,7 @@ function openPromotion(from, to, choices, colorPrefix) {
 function tryMove(from, to) {
   const dests = destSquares(from);
   if (!dests.includes(to)) {
-    if (boardPieces[to] && isWhitePiece(boardPieces[to])) {
+    if (isHumanPiece(boardPieces[to])) {
       selectedSquare = to;
       renderBoardOnly();
       return;
@@ -223,6 +252,10 @@ function tryMove(from, to) {
 }
 
 function updateStatus(state) {
+  humanColor = state.human_color || "white";
+  youColorEl.textContent = humanColor[0].toUpperCase() + humanColor.slice(1);
+  const aiColor = state.ai_color || (humanColor === "white" ? "black" : "white");
+  engineColorEl.textContent = aiColor[0].toUpperCase() + aiColor.slice(1);
   statusCardEl.classList.remove("is-check", "is-over");
   if (state.game_over) {
     statusCardEl.classList.add("is-over");
@@ -240,9 +273,12 @@ function updateStatus(state) {
     statusCopyEl.textContent = "Your king is attacked. Move it to safety or block the check.";
     return;
   }
-  statusKickerEl.textContent = state.turn === "white" ? "White to move" : "Engine thinking";
-  statusEl.textContent = state.turn === "white" ? "Your turn" : "Black to move";
-  statusCopyEl.textContent = "You play White. The neural net answers as Black.";
+  const humanTurn = state.turn === humanColor;
+  statusKickerEl.textContent = humanTurn
+    ? `${humanColor[0].toUpperCase() + humanColor.slice(1)} to move`
+    : "Engine thinking";
+  statusEl.textContent = humanTurn ? "Your turn" : "Engine turn";
+  statusCopyEl.textContent = `You play ${humanColor}. The neural net plays ${aiColor}.`;
 }
 
 function renderBoardOnly() {
@@ -261,13 +297,25 @@ function renderBoardOnly() {
 function renderBoard(state) {
   boardPieces = fenToBoard(state.fen);
   legalMoves = state.legal_moves || {};
+  humanColor = state.human_color || "white";
+  const flipped = humanColor === "black";
+  const files = "abcdefgh".split("");
+  const ranks = "87654321".split("");
+  if (flipped) {
+    files.reverse();
+    ranks.reverse();
+  }
+  [...fileLabelsEl.children].forEach((label, index) => { label.textContent = files[index]; });
+  [...rankLabelsEl.children].forEach((label, index) => { label.textContent = ranks[index]; });
   const last = lastMoveSquares(state.move_history);
   const checkedKing = state.in_check ? kingSquare(boardPieces, state.turn) : null;
 
   boardEl.innerHTML = "";
   for (let r = 0; r < 8; r += 1) {
     for (let c = 0; c < 8; c += 1) {
-      const name = squareName(r, c);
+      const name = flipped
+        ? "abcdefgh"[7 - c] + (r + 1)
+        : squareName(r, c);
       const sq = document.createElement("div");
       const isLight = (r + c) % 2 === 0;
       sq.className = `square ${isLight ? "light" : "dark"}`;
@@ -297,7 +345,12 @@ function renderBoard(state) {
 }
 
 async function render() {
-  const state = await api("/state");
+  if (!gameId) return;
+  const state = await api(`/state?game_id=${encodeURIComponent(gameId)}`);
+  renderState(state);
+}
+
+function renderState(state) {
   renderBoard(state);
   renderMoves(state.move_history || []);
   const captured = capturedPieces(state.fen);
@@ -310,7 +363,7 @@ function activateSquare(square) {
   if (busy || !promoModalEl.classList.contains("hidden")) return;
 
   if (!selectedSquare) {
-    if (boardPieces[square] && isWhitePiece(boardPieces[square]) && destSquares(square).length) {
+    if (isHumanPiece(boardPieces[square]) && destSquares(square).length) {
       selectedSquare = square;
       renderBoardOnly();
     }
@@ -331,7 +384,7 @@ function onPointerDown(event, square) {
 
   const canDrag =
     boardPieces[square] &&
-    isWhitePiece(boardPieces[square]) &&
+    isHumanPiece(boardPieces[square]) &&
     destSquares(square).length > 0;
 
   if (canDrag) {
@@ -379,7 +432,9 @@ function onPointerDown(event, square) {
   document.addEventListener("pointerup", onUp);
 }
 
-document.getElementById("restart-btn").addEventListener("click", startGame);
+document.getElementById("restart-btn").addEventListener("click", showColorChoice);
+document.getElementById("play-white").addEventListener("click", () => startGame("white"));
+document.getElementById("play-black").addEventListener("click", () => startGame("black"));
 document.getElementById("promo-cancel").addEventListener("click", () => {
   closePromotion();
   selectedSquare = null;
@@ -394,4 +449,4 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-window.onload = startGame;
+window.onload = showColorChoice;
