@@ -3,20 +3,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Human vs AI Chess</title>
+  <title>Chess Bot — Human vs Neural Policy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
+  <div class="atmosphere" aria-hidden="true"></div>
 
-<h1>♟ Human vs AI Chess</h1>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">♞</span>
+        <div>
+          <p class="brand-kicker">Local policy engine</p>
+          <h1>Chess Bot</h1>
+        </div>
+      </div>
+      <button id="restart-btn" type="button">New game</button>
+    </header>
 
-<div class="controls">
-  <p id="status"></p>
-  <button id="restart-btn" onclick="startGame()">Restart Game</button>
-</div>
+    <main class="stage">
+      <section class="table">
+        <div class="captured captured-top" id="captured-black" aria-label="Pieces captured by White"></div>
 
-<div id="board"></div>
+        <div class="board-shell">
+          <div class="rank-labels" aria-hidden="true">
+            <span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
+          </div>
+          <div>
+            <div id="board" role="grid" aria-label="Chessboard"></div>
+            <div class="file-labels" aria-hidden="true">
+              <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+            </div>
+          </div>
+        </div>
 
-<script src="/static/script.js"></script>
+        <div class="captured captured-bottom" id="captured-white" aria-label="Pieces captured by Black"></div>
+      </section>
+
+      <aside class="panel">
+        <div class="status-card" id="status-card">
+          <p class="status-kicker" id="status-kicker">White to move</p>
+          <p class="status-title" id="status">Your turn</p>
+          <p class="status-copy" id="status-copy">You play White. The neural net answers as Black.</p>
+        </div>
+
+        <div class="meta-row">
+          <div class="meta-chip">
+            <span>You</span>
+            <strong>White</strong>
+          </div>
+          <div class="meta-chip">
+            <span>Engine</span>
+            <strong>Black</strong>
+          </div>
+        </div>
+
+        <section class="moves-card">
+          <div class="moves-head">
+            <h2>Moves</h2>
+            <span id="ply-count">0 ply</span>
+          </div>
+          <ol id="move-list" class="move-list"></ol>
+        </section>
+
+        <p class="hint">Select a piece, then a square. Pawns that reach the last rank will ask which piece you want.</p>
+      </aside>
+    </main>
+  </div>
+
+  <div id="thinking" class="veil hidden" aria-live="polite">
+    <div class="veil-card">
+      <span class="spinner" aria-hidden="true"></span>
+      <p>The engine is choosing a reply</p>
+    </div>
+  </div>
+
+  <div id="promo-modal" class="veil hidden" role="dialog" aria-modal="true" aria-labelledby="promo-title">
+    <div class="promo-card">
+      <p class="status-kicker">Last rank</p>
+      <h2 id="promo-title">Promote pawn</h2>
+      <p class="promo-copy">Choose the piece your pawn becomes.</p>
+      <div class="promo-choices" id="promo-choices"></div>
+      <button id="promo-cancel" type="button" class="ghost-btn">Cancel</button>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
 </body>
 </html>

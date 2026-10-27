@@ -15,7 +15,7 @@ class ChessGame:
         self.ai_color = ai_color
         self.human_color = chess.WHITE if ai_color == chess.BLACK else chess.BLACK
         self.board = chess.Board()
-        self.move_history: list[str] = []
+        self.move_history: list[dict] = []
 
     def reset(self):
         self.board.reset()
@@ -23,6 +23,12 @@ class ChessGame:
 
     def get_fen(self) -> str:
         return self.board.fen()
+
+    def _push(self, move: chess.Move) -> str:
+        record = {"uci": move.uci(), "san": self.board.san(move)}
+        self.board.push(move)
+        self.move_history.append(record)
+        return record["uci"]
 
     def apply_human_move(self, move_uci: str):
         """Apply a human move (assumed to be the opposite color of the AI)."""
@@ -34,8 +40,7 @@ class ChessGame:
         if move not in self.board.legal_moves:
             raise ValueError("Illegal move")
 
-        self.board.push(move)
-        self.move_history.append(move_uci)
+        self._push(move)
 
     def apply_ai_move(self, temperature: float = 0.3, top_k: int | None = 5) -> str:
         """Select and apply the AI move for the configured AI color."""
@@ -53,22 +58,31 @@ class ChessGame:
             temperature=temperature,
             top_k=top_k,
         )
-        self.board.push(move)
-        uci = move.uci()
-        self.move_history.append(uci)
-        return uci
+        return self._push(move)
 
     def state(self):
         legal_moves = {}
         for move in self.board.legal_moves:
             from_sq = chess.square_name(move.from_square)
-            to_sq = chess.square_name(move.to_square)
-            legal_moves.setdefault(from_sq, []).append(to_sq)
+            promo = None
+            if move.promotion:
+                promo = chess.piece_symbol(move.promotion).lower()
+            legal_moves.setdefault(from_sq, []).append(
+                {
+                    "to": chess.square_name(move.to_square),
+                    "promotion": promo,
+                    "uci": move.uci(),
+                }
+            )
 
+        outcome = self.board.outcome()
         return {
             "fen": self.board.fen(),
             "move_history": self.move_history,
             "game_over": self.board.is_game_over(),
-            "result": self.board.result() if self.board.is_game_over() else None,
+            "result": outcome.result() if outcome else None,
+            "termination": outcome.termination.name if outcome else None,
+            "in_check": self.board.is_check(),
+            "turn": "white" if self.board.turn == chess.WHITE else "black",
             "legal_moves": legal_moves,
         }
